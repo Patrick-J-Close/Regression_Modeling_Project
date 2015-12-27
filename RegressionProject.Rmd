@@ -1,0 +1,105 @@
+---
+title: "Regression Models Course Project: Effect of Transmission Type on MPG"
+author: "Patrick Close"
+date: "December 27, 2015"
+output: pdf_document
+---
+
+# Executive Summary  
+  
+In this project we will analyze the __mtcars__ dataset to determine the effect of several variables on the response (mpg).  In particular, we are interested in two questions:  
+  
+  * Is an automatic or manual transmission better for MPG?
+  * Quantify the MPG difference between automatic and manual transmissions
+  
+# Data Transformations
+This analysis requires the following transformations:
+
+```{r, echo=FALSE}
+#R Libraries
+library(ggplot2)
+data(mtcars)
+```
+```{r}
+mtcars$cyl <- factor(mtcars$cyl)
+mtcars$vs <- factor(mtcars$vs)
+mtcars$am <- factor(mtcars$am, labels = c("Auto", "Man"))
+mtcars$gear <- factor(mtcars$gear)
+mtcars$carb <- factor(mtcars$carb)
+```
+
+# Exploratory Data Analysis  
+  
+To better understand the data set we plot the relationships between all variables of the dataset. The resulting scatterplot matrix can be seen as Figure 2 in the appendix. It appears several variables have at least a moderate correlation with mpg, something we will try to confirm in subsequent analysis.  
+As can be seen in the boxplot in Figure 1 in the appendix, cars with a manual transmission appear to have a higher mpg than cars with an automatic transmission. Additionally, as confirmed by the p-value < 0.05 from the below t-test, there is a significant difference in mpg by transmission type.  
+```{r}
+t_test <- t.test(mpg ~ am, data = mtcars)
+print(t_test$p.value)
+```
+
+# Regression analysis  
+  
+First we will build a simiple linear model with the response mpg with a single factor, transmission type (am)
+```{r, echo=TRUE, results="hide"}
+#Regression Analysis
+#simple linear model of mpg by am
+lmodel <- lm(mpg ~ am, data = mtcars)
+summary(lmodel)
+```
+Second, we will build a multifactor model and compare the resulting adjusted R-squared values to determine if the multifactor model offers better explanatory power
+```{r, results="hide"}
+#multiple regression model
+lmodels_all <- lm(mpg ~., data = mtcars)
+bestmodel <- step(lmodels_all, direction = "both")
+sum_lmodel <- summary(lmodel)
+sum_best <- summary(bestmodel)
+```
+```{r, echo=FALSE}
+Model_compare <- data.frame(sum_lmodel$r.squared, sum_lmodel$adj.r.squared)
+colnames(Model_compare) <- c("r.squared", "adj.r.squared")
+Model_compare[2,] <- c(sum_best$r.squared, sum_best$adj.r.squared)
+rownames(Model_compare) <- c("single factor model", "multi-factor model")
+print(Model_compare)
+```
+From the superior adjusted R-squared of the multi-factor model, we can conclude that the inclusion of addtional factors adds expanatory power to the model.  Additionally, using the __anova__ function, we can see the p-value < 0.05.  
+```{r}
+anova(lmodel, lmodels_all)
+```
+
+# Residuals
+__bestmodel__ produces the following residual plots:  
+
+```{r}
+
+par(mfrow = c(2,2))
+plot(bestmodel)
+```
+  
+From the above plots, we can make the following observations:    
+  * The points in the Residuals vs. Fitted plot seem to be randomly scattered on the plot and verify the independence condition.  
+  * The Normal Q-Q plot consists of the points which mostly fall on the line indicating that the residuals are normally distributed.  
+  * The Scale-Location plot consists of points scattered in a constant band pattern, indicating constant variance.  
+  
+# Conclusions  
+* Cars with Manual transmission get more miles per gallon mpg compared to cars with Automatic transmission. (1.8 adjusted by hp, cyl, and wt).
+* mpg will decrease by 2.5 (adjusted by hp, cyl, and am) for every 1000 lb increase in wt.
+* mpg decreases negligibly with increase of hp.
+* If number of cylinders, cyl increases from 4 to 6 and 8, mpg will decrease by a factor of 3 and 2.2 respectively (adjusted by hp, wt, and am).  
+
+
+# Appendix  
+Figure 1: Boxplot of mpg by am  
+```{r, echo=FALSE}
+#Exploratory Data Analysis
+#Boxplot of mpg by am
+meds <- aggregate(mpg ~ am, data = mtcars, median)
+g <- ggplot(aes(x=am, y=mpg), data = mtcars) + geom_boxplot(aes(fill=am))
+g <- g + geom_text(data=meds, aes(label = mpg, y =  mpg + 0.5))
+print(g)
+```
+Figure 2: Scatterplot matrix of factors of mtcars  
+```{r,echo=FALSE}
+#Scatterplot matrix
+pairs(mtcars[,1:11], panel = panel.smooth)
+```
+
